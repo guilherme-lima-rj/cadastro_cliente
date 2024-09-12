@@ -3,13 +3,31 @@ import sqlite3
 import pandas as pd
 from banco_dados import criar_banco
 
-def get_cliente(id):
+def get_cliente_id(id):
     conexao = sqlite3.connect('clientes.db')
     c = conexao.cursor()
-    c.execute("SELECT * FROM clientes WHERE id = ?", (id,))
+    c.execute("SELECT * FROM clientes WHERE id = ?", (id))
     cliente = c.fetchone()
     conexao.close()
     return cliente
+
+
+def view_detalhes(id):
+    if st.button(f"Visualizar Detalhes"):
+        st.session_state["cliente_id"] = id
+        st.rerun()  # Recarrega a página para mostrar detalhes
+
+def show_cliente(id):
+    if id:
+        cliente = get_cliente_id(id)
+        if cliente:
+            st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
+            nome = st.text_input("Nome", value=cliente[1], disabled=True)
+            sobrenome = st.text_input("Sobrenome", value=cliente[2], disabled=True)
+            email = st.text_input("Email", value=cliente[3], disabled=True)
+            telefone = st.text_input("Telefone", value=cliente[4], disabled=True)
+    else:
+        st.error("Nenhum cliente selecionado para atualização.")
 
 def get_clientes():
     conexao = sqlite3.connect('clientes.db')
@@ -43,8 +61,10 @@ def deletar_cliente(id):
     conexao.close()
 
 criar_banco()
-
-st.title("Sistema de Cadastro de Clientes")
+st.set_page_config(
+    page_title="Cadastro de Clientes"
+)
+st.subheader("SISTEMA DE CADASTRO DE CLIENTES")
 
 # Estilizando o menu fixo à esquerda
 st.markdown("""
@@ -57,10 +77,55 @@ st.markdown("""
 
 st.sidebar.markdown("<h1>Menu</h1>", unsafe_allow_html=True)
 
-menu = ["Inserir", "Consultar", "Atualizar", "Deletar"]
+menu = [ "Consultar","Inserir","Atualizar", "Deletar"]
 choice = st.sidebar.radio("", menu)
 
-if choice == "Inserir":
+if choice == "Consultar":
+    clientes = get_clientes()
+    df = pd.DataFrame(clientes, columns=["ID", "Nome", "Sobrenome", "Email", "Telefone"])
+    
+    st.subheader("Consultar Clientes")
+    options = ["Selecione uma opção:", "ID", "Nome", "Sobrenome", "Email", "Telefone"]
+    selecione_busca = st.selectbox("Buscar por:", options=options)
+
+    # Determina o estado do campo de entrada de texto
+    input_disabled = selecione_busca == "Selecione uma opção:"
+
+    # Determina a mensagem do text_input
+    if input_disabled == True:
+        mensagem = "Selecione uma opção de pesquisa"
+    else:
+        mensagem = f"Pesquisar cliente por {selecione_busca}:"
+
+    # Entrada de texto para pesquisa
+    search_name = st.text_input(mensagem, disabled=input_disabled)
+
+    # Filtrando o DataFrame com base na entrada do usuário
+    if not input_disabled and search_name:
+        if selecione_busca == "Nome":
+            filtered_df = df[df['Nome'].str.contains(search_name, case=False, na=False)]
+        elif selecione_busca == "Sobrenome":
+            filtered_df = df[df['Sobrenome'].str.contains(search_name, case=False, na=False)]
+        elif selecione_busca == "Email":
+            filtered_df = df[df['Email'].str.contains(search_name, case=False, na=False)]
+        elif selecione_busca == "Telefone":
+            filtered_df = df[df['Telefone'].str.contains(search_name, case=False, na=False)]
+        else:  # Assuming 'ID'
+            filtered_df = df[df['ID'].astype(str).str.contains(search_name, case=False, na=False)]
+        
+        st.subheader("Clientes Encontrados")
+        st.dataframe(filtered_df, hide_index=True)
+
+        if not filtered_df.empty:
+            pass
+
+        else:
+            st.write("Nenhum cliente encontrado com o critério fornecido.")
+    else:
+        st.subheader("Todos os Clientes")
+        st.dataframe(df,hide_index=True)
+
+elif choice == "Inserir":
     st.subheader("Inserir Cliente")
     nome = st.text_input("Nome")
     sobrenome = st.text_input("Sobrenome")
@@ -70,22 +135,13 @@ if choice == "Inserir":
         inserir_cliente(nome, sobrenome, email, telefone)
         st.success("Cliente inserido com sucesso!")
 
-elif choice == "Consultar":
-    st.subheader("Consultar Clientes")
-    clientes = get_clientes()
-    df = pd.DataFrame(clientes, columns=["ID", "Nome", "Sobrenome", "Email", "Telefone"])
-    cliente_selecionado = st.selectbox("Selecione um cliente para atualizar", df["ID"])
-    if st.button("Atualizar Cliente Selecionado"):
-        st.session_state["cliente_id"] = cliente_selecionado
-        st.rerun()
-
 elif choice == "Atualizar":
     st.subheader("Atualizar Cliente")
     if "cliente_id" in st.session_state:
         id = st.session_state["cliente_id"]
-        cliente = get_cliente(id)
+        cliente = get_cliente_id(id)
         if cliente:
-            st.text_input("ID Cliente: ",value=cliente[0], disabled=True)
+            st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
             nome = st.text_input("Nome", value=cliente[1])
             sobrenome = st.text_input("Sobrenome", value=cliente[2])
             email = st.text_input("Email", value=cliente[3])
