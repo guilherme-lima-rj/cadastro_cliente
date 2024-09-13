@@ -3,33 +3,25 @@ import sqlite3
 import pandas as pd
 from banco_dados import criar_banco
 
-def get_cliente_id(id):
+def buscar_cliente_id(id):
     conexao = sqlite3.connect('clientes.db')
     c = conexao.cursor()
     c.execute("SELECT * FROM clientes WHERE id = ?", (id))
-    cliente = c.fetchone()
+    row = c.fetchone()
     conexao.close()
-    return cliente
+    return row
 
-
-def view_detalhes(id):
-    if st.button(f"Visualizar Detalhes"):
-        st.session_state["cliente_id"] = id
-        st.rerun()  # Recarrega a página para mostrar detalhes
-
-def show_cliente(id):
-    if id:
-        cliente = get_cliente_id(id)
-        if cliente:
-            st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
-            nome = st.text_input("Nome", value=cliente[1], disabled=True)
-            sobrenome = st.text_input("Sobrenome", value=cliente[2], disabled=True)
-            email = st.text_input("Email", value=cliente[3], disabled=True)
-            telefone = st.text_input("Telefone", value=cliente[4], disabled=True)
+def mostrar_cliente(cliente):
+    if cliente:
+        st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
+        st.text_input("Nome", value=cliente[1], disabled=True)
+        st.text_input("Sobrenome", value=cliente[2], disabled=True)
+        st.text_input("Email", value=cliente[3], disabled=True)
+        st.text_input("Telefone", value=cliente[4], disabled=True)
     else:
-        st.error("Nenhum cliente selecionado para atualização.")
+        st.error("Cliente não encontrado.")
 
-def get_clientes():
+def buscar_todos_clientes():
     conexao = sqlite3.connect('clientes.db')
     c = conexao.cursor()
     c.execute("SELECT * FROM clientes")
@@ -77,11 +69,11 @@ st.markdown("""
 
 st.sidebar.markdown("<h1>Menu</h1>", unsafe_allow_html=True)
 
-menu = [ "Consultar","Inserir","Atualizar", "Deletar"]
+menu = ["Atualizar", "Deletar", "Consultar","Inserir","Atualizar"]
 choice = st.sidebar.radio("", menu)
 
 if choice == "Consultar":
-    clientes = get_clientes()
+    clientes = buscar_todos_clientes()
     df = pd.DataFrame(clientes, columns=["ID", "Nome", "Sobrenome", "Email", "Telefone"])
     
     st.subheader("Consultar Clientes")
@@ -89,34 +81,34 @@ if choice == "Consultar":
     selecione_busca = st.selectbox("Buscar por:", options=options)
 
     # Determina o estado do campo de entrada de texto
-    input_disabled = selecione_busca == "Selecione uma opção:"
+    input_desabilitado = selecione_busca == "Selecione uma opção:"
 
     # Determina a mensagem do text_input
-    if input_disabled == True:
+    if input_desabilitado == True:
         mensagem = "Selecione uma opção de pesquisa"
     else:
         mensagem = f"Pesquisar cliente por {selecione_busca}:"
 
     # Entrada de texto para pesquisa
-    search_name = st.text_input(mensagem, disabled=input_disabled)
+    bucar_nome = st.text_input(mensagem, disabled=input_desabilitado)
 
     # Filtrando o DataFrame com base na entrada do usuário
-    if not input_disabled and search_name:
+    if not input_desabilitado and bucar_nome:
         if selecione_busca == "Nome":
-            filtered_df = df[df['Nome'].str.contains(search_name, case=False, na=False)]
+            df_filtrado = df[df['Nome'].str.contains(bucar_nome, case=False, na=False)]
         elif selecione_busca == "Sobrenome":
-            filtered_df = df[df['Sobrenome'].str.contains(search_name, case=False, na=False)]
+            df_filtrado = df[df['Sobrenome'].str.contains(bucar_nome, case=False, na=False)]
         elif selecione_busca == "Email":
-            filtered_df = df[df['Email'].str.contains(search_name, case=False, na=False)]
+            df_filtrado = df[df['Email'].str.contains(bucar_nome, case=False, na=False)]
         elif selecione_busca == "Telefone":
-            filtered_df = df[df['Telefone'].str.contains(search_name, case=False, na=False)]
+            df_filtrado = df[df['Telefone'].str.contains(bucar_nome, case=False, na=False)]
         else:  # Assuming 'ID'
-            filtered_df = df[df['ID'].astype(str).str.contains(search_name, case=False, na=False)]
+            df_filtrado = df[df['ID'].astype(str).str.contains(bucar_nome, case=False, na=False)]
         
         st.subheader("Clientes Encontrados")
-        st.dataframe(filtered_df, hide_index=True)
+        st.dataframe(df_filtrado, hide_index=True)
 
-        if not filtered_df.empty:
+        if not df_filtrado.empty:
             pass
 
         else:
@@ -139,7 +131,7 @@ elif choice == "Atualizar":
     st.subheader("Atualizar Cliente")
     if "cliente_id" in st.session_state:
         id = st.session_state["cliente_id"]
-        cliente = get_cliente_id(id)
+        cliente = buscar_cliente_id(id)
         if cliente:
             st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
             nome = st.text_input("Nome", value=cliente[1])
@@ -156,7 +148,23 @@ elif choice == "Atualizar":
 
 elif choice == "Deletar":
     st.subheader("Deletar Cliente")
-    id = st.number_input("ID do Cliente", min_value=1, step=1)
-    if st.button("Deletar"):
-        deletar_cliente(id)
-        st.success("Cliente deletado com sucesso!")
+    busca_id = str(st.number_input("Digite o id do Cliente:",min_value=1, step=1))
+
+    # Botão para consultar cliente
+    if st.button("Buscar"):
+        cliente = buscar_cliente_id(busca_id)
+        if cliente:
+            st.session_state['cliente'] = cliente
+            st.session_state['busca_id'] = busca_id
+        else:
+            st.error("Nenhum cliente encontrado")
+
+    # Verifica se o cliente foi encontrado e exibe as informações
+    if 'cliente' in st.session_state:
+        mostrar_cliente(st.session_state['cliente'])
+        if st.button("Deletar"):
+            deletar_cliente(st.session_state['busca_id'])
+            st.pop("Cliente deletado com sucesso!")
+            st.success("Cliente deletado com sucesso!")
+            del st.session_state['cliente']
+            del st.session_state['busca_id']
