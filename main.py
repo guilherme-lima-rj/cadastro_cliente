@@ -11,7 +11,7 @@ def buscar_cliente_id(id):
     conexao.close()
     return row
 
-def mostrar_cliente(cliente):
+def mostrar_cliente_del(cliente):
     if cliente:
         st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
         st.text_input("Nome", value=cliente[1], disabled=True)
@@ -20,6 +20,16 @@ def mostrar_cliente(cliente):
         st.text_input("Telefone", value=cliente[4], disabled=True)
     else:
         st.error("Cliente não encontrado.")
+
+def mostrar_cliente_upd(cliente):
+    if cliente:
+        st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
+        st.text_input("Nome", value=cliente[1], disabled=False)
+        st.text_input("Sobrenome", value=cliente[2], disabled=False)
+        st.text_input("Email", value=cliente[3], disabled=False)
+        st.text_input("Telefone", value=cliente[4], disabled=False)
+    else:
+        st.error("Cliente não encontrado.")        
 
 def buscar_todos_clientes():
     conexao = sqlite3.connect('clientes.db')
@@ -69,7 +79,7 @@ st.markdown("""
 
 st.sidebar.markdown("<h1>Menu</h1>", unsafe_allow_html=True)
 
-menu = ["Atualizar", "Deletar", "Consultar","Inserir","Atualizar"]
+menu = ["Consultar","Inserir","Atualizar","Deletar"]
 choice = st.sidebar.radio("", menu)
 
 if choice == "Consultar":
@@ -129,22 +139,32 @@ elif choice == "Inserir":
 
 elif choice == "Atualizar":
     st.subheader("Atualizar Cliente")
-    if "cliente_id" in st.session_state:
-        id = st.session_state["cliente_id"]
-        cliente = buscar_cliente_id(id)
+    busca_id = str(st.number_input("Digite o id do Cliente:",min_value=1, step=1))
+    # Botão para consultar cliente
+    if st.button("Buscar"):
+        cliente = buscar_cliente_id(busca_id)
         if cliente:
-            st.text_input("ID Cliente: ", value=cliente[0], disabled=True)
-            nome = st.text_input("Nome", value=cliente[1])
-            sobrenome = st.text_input("Sobrenome", value=cliente[2])
-            email = st.text_input("Email", value=cliente[3])
-            telefone = st.text_input("Telefone", value=cliente[4])
-            if st.button("Atualizar"):
-                atualizar_cliente(id, nome, sobrenome, email, telefone)
-                st.success("Cliente atualizado com sucesso!")
+            st.session_state['cliente_upd'] = cliente
+            st.session_state['busca_id_upd'] = busca_id
         else:
-            st.error("Cliente não encontrado.")
-    else:
-        st.error("Nenhum cliente selecionado para atualização.")
+            st.error("Nenhum cliente encontrado")
+
+    # Verifica se o cliente foi encontrado e exibe as informações
+    if 'cliente_upd' in st.session_state:
+        cliente = st.session_state['cliente_upd']
+        id, nome, sobrenome, email, telefone = cliente
+        
+        # Exibindo campos editáveis
+        nome = st.text_input("Nome", value=nome)
+        sobrenome = st.text_input("Sobrenome", value=sobrenome)
+        email = st.text_input("Email", value=email)
+        telefone = st.text_input("Telefone", value=telefone)
+    
+        if st.button("Atualizar"):
+            atualizar_cliente(st.session_state['busca_id_upd'], nome, sobrenome, email, telefone)
+            st.success("Cliente atualizado com sucesso!")
+            del st.session_state['cliente_upd']
+            del st.session_state['busca_id_upd']
 
 elif choice == "Deletar":
     st.subheader("Deletar Cliente")
@@ -154,17 +174,16 @@ elif choice == "Deletar":
     if st.button("Buscar"):
         cliente = buscar_cliente_id(busca_id)
         if cliente:
-            st.session_state['cliente'] = cliente
-            st.session_state['busca_id'] = busca_id
+            st.session_state['cliente_del'] = cliente
+            st.session_state['busca_id_del'] = busca_id
         else:
             st.error("Nenhum cliente encontrado")
 
     # Verifica se o cliente foi encontrado e exibe as informações
-    if 'cliente' in st.session_state:
-        mostrar_cliente(st.session_state['cliente'])
+    if 'cliente_del' in st.session_state:
+        mostrar_cliente_del(st.session_state['cliente_del'])
         if st.button("Deletar"):
-            deletar_cliente(st.session_state['busca_id'])
-            st.pop("Cliente deletado com sucesso!")
+            deletar_cliente(st.session_state['busca_id_del'])
             st.success("Cliente deletado com sucesso!")
-            del st.session_state['cliente']
-            del st.session_state['busca_id']
+            del st.session_state['cliente_del']
+            del st.session_state['busca_id_del']
